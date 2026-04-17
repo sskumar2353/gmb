@@ -1,0 +1,1 @@
+export const currency = (v) => `Rs. ${Number(v || 0).toLocaleString("en-IN")}`;

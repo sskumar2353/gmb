@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: gmb-backend
+    env: java
+    rootDir: backend
+    plan: free
+    buildCommand: ./gradlew clean bootJar
+    startCommand: java -jar build/libs/backend-0.0.1-SNAPSHOT.jar
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXP_MINUTES
+        value: "120"
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+  - type: web
+    name: gmb-frontend
+    env: static
+    rootDir: frontend
+    plan: free
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false

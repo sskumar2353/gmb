@@ -1,0 +1,126 @@
+package com.greenmiles.backend.booking;
+
+import com.greenmiles.backend.booking.dto.BookingResponse;
+import com.greenmiles.backend.booking.dto.CreateBookingRequest;
+import com.greenmiles.backend.notification.Notification;
+import com.greenmiles.backend.notification.NotificationRepository;
+import com.greenmiles.backend.notification.NotificationType;
+import com.greenmiles.backend.ride.BoardingPoint;
+import com.greenmiles.backend.ride.BoardingPointRepository;
+import com.greenmiles.backend.ride.Ride;
+import com.greenmiles.backend.ride.RideEntityRepository;
+import com.greenmiles.backend.user.User;
+import com.greenmiles.backend.user.UserRepository;
+import java.time.Instant;
+import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class BookingService {
+
+    private final BookingRepository bookingRepository;
+    private final CancellationRepository cancellationRepository;
+    private final UserRepository userRepository;
+    private final RideEntityRepository rideRepository;
+    private final BoardingPointRepository boardingPointRepository;
+    private final NotificationRepository notificationRepository;
+
+    public BookingService(
+            BookingRepository bookingRepository,
+            CancellationRepository cancellationRepository,
+            UserRepository userRepository,
+            RideEntityRepository rideRepository,
+            BoardingPointRepository boardingPointRepository,
+            NotificationRepository notificationRepository) {
+        this.bookingRepository = bookingRepository;
+        this.cancellationRepository = cancellationRepository;
+        this.userRepository = userRepository;
+        this.rideRepository = rideRepository;
+        this.boardingPointRepository = boardingPointRepository;
+        this.notificationRepository = notificationRepository;
+    }
+
+    @Transactional
+    public BookingResponse create(CreateBookingRequest request) {
+        boolean alreadyBooked = bookingRepository.existsByRideRideIdAndSeatNumberAndBookingStatusIn(
+                request.rideId(), request.seatNumber(), List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED));
+        if (alreadyBooked) {
+            throw new IllegalArgumentException("Seat already booked for this ride");
+        }
+
+        User user = userRepository.findById(request.userId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        Ride ride = rideRepository.findById(request.rideId()).orElseThrow(() -> new IllegalArgumentException("Ride not found"));
+        BoardingPoint pickup = boardingPointRepository
+                .findById(request.pickupPointId())
+                .orElseThrow(() -> new IllegalArgumentException("Pickup point not found"));
+        BoardingPoint drop = boardingPointRepository
+                .findById(request.dropPointId())
+                .orElseThrow(() -> new IllegalArgumentException("Drop point not found"));
+
+        Booking booking = new Booking();
+        booking.setUser(user);
+        booking.setRide(ride);
+        booking.setPickupPoint(pickup);
+        booking.setDropPoint(drop);
+        booking.setSeatNumber(request.seatNumber());
+        booking.setBookingTime(Instant.now());
+        booking.setBookingStatus(BookingStatus.CONFIRMED);
+        Booking saved = bookingRepository.save(booking);
+        createAlert(user, "Booking Confirmed", "Your booking #" + saved.getBookingId() + " is confirmed.");
+        return toResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public BookingResponse getById(Long bookingId) {
+        return toResponse(bookingRepository.findById(bookingId).orElseThrow(() -> new IllegalArgumentException("Booking not found")));
+    }
+
+    @Transactional(readOnly = true)
+    public List<BookingResponse> getUserBookings(Long userId) {
+        return bookingRepository.findByUserUserIdOrderByBookingTimeDesc(userId).stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public BookingResponse cancel(Long bookingId, String reason, CancelledBy cancelledBy) {
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+        if (booking.getBookingStatus() == BookingStatus.CANCELLED) {
+            throw new IllegalArgumentException("Booking is already cancelled");
+        }
+        booking.setBookingStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking);
+
+        Cancellation cancellation = new Cancellation();
+        cancellation.setBooking(booking);
+        cancellation.setCancelledBy(cancelledBy);
+        cancellation.setReason(reason);
+        cancellation.setCancelledAt(Instant.now());
+        cancellationRepository.save(cancellation);
+        createAlert(
+                booking.getUser(),
+                "Booking Cancelled",
+                "Your booking #" + booking.getBookingId() + " has been cancelled. Reason: " + reason);
+        return toResponse(booking);
+    }
+
+    private void createAlert(User user, String title, String message) {
+        Notification notification = new Notification();
+        notification.setUser(user);
+        notification.setTitle(title);
+        notification.setMessage(message);
+        notification.setType(NotificationType.ALERT);
+        notification.setRead(Boolean.FALSE);
+        notification.setCreatedAt(Instant.now());
+        notificationRepository.save(notification);
+    }
+
+    private BookingResponse toResponse(Booking booking) {
+        return new BookingResponse(
+                booking.getBookingId(),
+                booking.getUser().getUserId(),
+                booking.getRide().getRideId(),
+                booking.getSeatNumber(),
+                booking.getBookingStatus(),
+                booking.getBookingTime());
+    }
+}
