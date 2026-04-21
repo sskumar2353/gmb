@@ -16,12 +16,15 @@ public class JwtService {
 
     private final SecretKey secretKey;
     private final long expirationMinutes;
+    private final long refreshExpirationMinutes;
 
     public JwtService(
             @Value("${app.security.jwt.secret}") String secret,
-            @Value("${app.security.jwt.expiration-minutes}") long expirationMinutes) {
+            @Value("${app.security.jwt.expiration-minutes}") long expirationMinutes,
+            @Value("${app.security.jwt.refresh-expiration-minutes:10080}") long refreshExpirationMinutes) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMinutes = expirationMinutes;
+        this.refreshExpirationMinutes = refreshExpirationMinutes;
     }
 
     public String generateToken(String subject, String role, String email) {
@@ -43,5 +46,22 @@ public class JwtService {
         } catch (JwtException | IllegalArgumentException ex) {
             throw new IllegalArgumentException("Invalid token");
         }
+    }
+
+    public String generateRefreshToken(String subject, String email) {
+        Instant now = Instant.now();
+        Instant expiry = now.plusSeconds(refreshExpirationMinutes * 60);
+        return Jwts.builder()
+                .subject(subject)
+                .claim("type", "REFRESH")
+                .claim("email", email)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiry))
+                .signWith(secretKey)
+                .compact();
+    }
+
+    public long getRefreshExpirationMinutes() {
+        return refreshExpirationMinutes;
     }
 }

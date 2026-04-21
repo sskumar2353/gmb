@@ -23,9 +23,15 @@ public class Driver {
     @Column(name = "phone", nullable = false)
     private String phone;
 
+    @Column(name = "license_number", nullable = false)
+    private String licenseNumber;
+
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
     private DriverStatus status;
+
+    @Column(name = "rating", nullable = false)
+    private Double rating;
 
     public Long getDriverId() {
         return driverId;
@@ -39,7 +45,35 @@ public class Driver {
         return phone;
     }
 
+    public String getLicenseNumber() {
+        return licenseNumber;
+    }
+
     public DriverStatus getStatus() {
         return status;
+    }
+
+    public Double getRating() {
+        return rating;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public void setLicenseNumber(String licenseNumber) {
+        this.licenseNumber = licenseNumber;
+    }
+
+    public void setStatus(DriverStatus status) {
+        this.status = status;
+    }
+
+    public void setRating(Double rating) {
+        this.rating = rating;
     }
 }

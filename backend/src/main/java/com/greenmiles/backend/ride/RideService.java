@@ -1,6 +1,7 @@
 package com.greenmiles.backend.ride;
 
 import com.greenmiles.backend.ride.dto.RideSearchResponse;
+import com.greenmiles.backend.ride.dto.CityResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,9 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class RideService {
 
     private final RideRepository rideRepository;
+    private final CityRepository cityRepository;
 
-    public RideService(RideRepository rideRepository) {
+    public RideService(RideRepository rideRepository, CityRepository cityRepository) {
         this.rideRepository = rideRepository;
+        this.cityRepository = cityRepository;
     }
 
     @Transactional(readOnly = true)
@@ -31,6 +34,13 @@ public class RideService {
                         ride.getStartTime(),
                         ride.getRideStatus(),
                         ride.getAvailableSeats()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CityResponse> getCities() {
+        return cityRepository.findAll().stream()
+                .map(c -> new CityResponse(c.getCityId(), c.getCityName()))
                 .toList();
     }
 }

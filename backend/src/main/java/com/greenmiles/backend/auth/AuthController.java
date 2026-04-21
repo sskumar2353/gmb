@@ -4,10 +4,13 @@ import com.greenmiles.backend.auth.dto.AuthResponse;
 import com.greenmiles.backend.auth.dto.AdminLoginRequest;
 import com.greenmiles.backend.auth.dto.DriverLoginRequest;
 import com.greenmiles.backend.auth.dto.LoginRequest;
+import com.greenmiles.backend.auth.dto.RefreshTokenRequest;
 import com.greenmiles.backend.auth.dto.RegisterRequest;
 import com.greenmiles.backend.common.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,5 +44,16 @@ public class AuthController {
     @PostMapping("/admin/login")
     public ResponseEntity<ApiResponse<AuthResponse>> adminLogin(@Valid @RequestBody AdminLoginRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Admin login successful", authService.adminLogin(request)));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<AuthResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Token refreshed", authService.refresh(request.refreshToken())));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader) {
+        authService.logout(authHeader);
+        return ResponseEntity.ok(ApiResponse.ok("Logout successful", null));
     }
 }

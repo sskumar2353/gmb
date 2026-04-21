@@ -7,4 +7,9 @@ public record AdminDashboardResponse(
         long activeRides,
         long totalBookings,
         long pendingBookings,
-        long unreadNotifications) {}
+        long unreadNotifications,
+        long totalRoutePlans,
+        long totalPaymentLogs,
+        long successfulPayments,
+        long failedPayments,
+        long totalPaymentAmount) {}

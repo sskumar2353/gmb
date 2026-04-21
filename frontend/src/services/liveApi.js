@@ -78,6 +78,10 @@ export const liveApi = {
     const res = await apiClient.get("/api/v1/rides/search", { params: { startCityId, endCityId, date } });
     return (unwrap(res) || []).map(asUiRide);
   },
+  async getCities() {
+    const res = await apiClient.get("/api/v1/rides/cities");
+    return unwrap(res) || [];
+  },
   async createBooking(payload) {
     const res = await apiClient.post("/api/v1/bookings", payload);
     return unwrap(res);
@@ -130,6 +134,34 @@ export const liveApi = {
     const params = { page, size };
     if (entity) params.entity = entity;
     const res = await apiClient.get("/api/v1/admin/audit-logs", { params });
+    return unwrap(res);
+  },
+  async getAdminDrivers() {
+    const res = await apiClient.get("/api/v1/admin/drivers");
+    return unwrap(res) || [];
+  },
+  async createAdminDriver(payload) {
+    const res = await apiClient.post("/api/v1/admin/drivers", payload);
+    return unwrap(res);
+  },
+  async getAdminRoutes() {
+    const res = await apiClient.get("/api/v1/admin/routes");
+    return unwrap(res) || [];
+  },
+  async createAdminRoute(payload) {
+    const res = await apiClient.post("/api/v1/admin/routes", payload);
+    return unwrap(res);
+  },
+  async createRideAssignment(payload) {
+    const res = await apiClient.post("/api/v1/admin/ride-assignments", payload);
+    return unwrap(res);
+  },
+  async getAdminPaymentLogs() {
+    const res = await apiClient.get("/api/v1/admin/payments");
+    return unwrap(res) || [];
+  },
+  async getAdminOpsMetrics() {
+    const res = await apiClient.get("/api/v1/admin/ops-metrics");
     return unwrap(res);
   },
   async createCourierOrder(payload) {

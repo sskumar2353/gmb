@@ -17,6 +17,7 @@ const persistedAuth = typeof window !== "undefined" ? readPersistedAuth() : null
 export const useAppStore = create((set) => ({
   user: persistedAuth?.user || null,
   authToken: persistedAuth?.token || null,
+  refreshToken: persistedAuth?.refreshToken || null,
   searchParams: { from: "", to: "", date: "", passengers: 1, womenOnly: false },
   setSearchParams: (patch) =>
     set((s) => ({ searchParams: { ...s.searchParams, ...patch } })),
@@ -32,12 +33,25 @@ export const useAppStore = create((set) => ({
   setUser: (user) =>
     set(() => {
       const token = user?.token || null;
+      const refreshToken = user?.refreshToken || null;
       if (user) {
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user, token }));
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user, token, refreshToken }));
       } else {
         localStorage.removeItem(AUTH_STORAGE_KEY);
       }
-      return { user, authToken: token };
+      return { user, authToken: token, refreshToken };
+    }),
+  updateAuthTokens: ({ token, refreshToken }) =>
+    set((s) => {
+      if (!s.user) return {};
+      const nextUser = { ...s.user, token, refreshToken };
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user: nextUser, token, refreshToken }));
+      return { user: nextUser, authToken: token, refreshToken };
+    }),
+  clearAuth: () =>
+    set(() => {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      return { user: null, authToken: null, refreshToken: null };
     }),
   setRides: (ridesData) => set({ rides: ridesData }),
   addRide: (ride) => set((s) => ({ rides: [ride, ...s.rides] })),

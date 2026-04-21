@@ -6,7 +6,7 @@ export function useToastTimeout() {
   const hide = useAppStore((s) => s.hideToast);
   useEffect(() => {
     if (!visible) return;
-    const t = setTimeout(() => hide(), 2200);
+    const t = setTimeout(() => hide(), 5000);
     return () => clearTimeout(t);
   }, [visible, hide]);
 }

@@ -1,12 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Layout from "../components/layout/Layout";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
-import Select from "../components/ui/Select";
 import Button from "../components/ui/Button";
 import { useAppStore } from "../store/useAppStore";
 import { liveApi } from "../services/liveApi";
+import { useState } from "react";
 
 const routeByRole = {
   user: "/user/dashboard",
@@ -16,30 +15,38 @@ const routeByRole = {
 
 export default function AuthPage({ mode = "login" }) {
   const nav = useNavigate();
+  const location = useLocation();
   const setUser = useAppStore((s) => s.setUser);
   const notify = useAppStore((s) => s.notify);
-  const [role, setRole] = useState("user");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const search = new URLSearchParams(location.search);
+  const sessionExpired = mode === "login" && search.get("reason") === "session_expired";
+
+  const getFieldErrors = (err) => {
+    const data = err?.response?.data?.data;
+    if (!data) return {};
+    if (data.fields && typeof data.fields === "object") return data.fields;
+    if (typeof data === "object") return data;
+    return {};
+  };
+
   const submit = async (e) => {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const email = String(form.get("email") || "");
-    const password = String(form.get("password") || "");
-    const role = String(form.get("role") || "user");
-    const driverId = Number(form.get("driverId") || 0);
-    if (role !== "driver" && password.length < 6) {
+    setFieldErrors({});
+    if (password.length < 6) {
+      setFieldErrors({ password: "Password must be at least 6 characters" });
       notify("Password must be at least 6 characters", "warning");
       return;
     }
-    if (role === "driver" && !/^\d{10}$/.test(password)) {
-      notify("For driver login, enter 10-digit phone in password field", "warning");
+    if (mode === "register" && password !== confirmPassword) {
+      setFieldErrors({ confirmPassword: "Passwords do not match" });
+      notify("Passwords do not match", "warning");
       return;
     }
     try {
-      if (mode === "register" && role !== "user") {
-        notify("Registration is available for end users only", "warning");
-        return;
-      }
-
       let authData;
       if (mode === "register") {
         authData = await liveApi.registerUser({
@@ -48,30 +55,30 @@ export default function AuthPage({ mode = "login" }) {
           email,
           password,
         });
-      } else if (role === "user") {
-        authData = await liveApi.loginUser({ email, password });
-      } else if (role === "driver") {
-        if (!driverId) {
-          notify("Enter valid driver ID for driver login", "warning");
-          return;
-        }
-        authData = await liveApi.loginDriver({ driverId, phone: password });
       } else {
-        const username = email.includes("@") ? email.split("@")[0] : email;
-        authData = await liveApi.loginAdmin({ username, password });
+        authData = await liveApi.loginUser({ email, password });
       }
+
+      const resolvedRole =
+        authData.userId === 0
+          ? "admin"
+          : String(authData.email || "").startsWith("driver-")
+            ? "driver"
+            : "user";
 
       const user = {
         id: authData.userId,
         name: authData.fullName || email.split("@")[0] || "Demo",
         email: authData.email || email,
-        role,
+        role: resolvedRole,
         token: authData.token,
+        refreshToken: authData.refreshToken || null,
       };
       setUser(user);
-      notify(mode === "login" ? `${role} login successful` : `${role} registration successful`, "success");
-      nav(routeByRole[role] || "/search");
+      notify(mode === "login" ? `${resolvedRole} login successful` : "user registration successful", "success");
+      nav(routeByRole[resolvedRole] || "/search");
     } catch (err) {
+      setFieldErrors(getFieldErrors(err));
       notify(err?.response?.data?.message || "Authentication failed", "alert");
     }
   };
@@ -80,49 +87,60 @@ export default function AuthPage({ mode = "login" }) {
     <Layout>
       <Card className="mx-auto max-w-md space-y-4">
         <h1 className="text-2xl font-semibold">{mode === "login" ? "Login" : "Register"}</h1>
+        {sessionExpired ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Session expired. Please login again.
+          </div>
+        ) : null}
         <form className="space-y-3" onSubmit={submit}>
-          {!(mode === "login" && role === "driver") && (
+          <div>
             <Input
               name="email"
-              label={mode === "login" && role === "admin" ? "Admin Username or Email" : "Email"}
+              label="Email / Username"
               type="text"
               required
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, email: undefined }));
+              }}
+              className={fieldErrors.email ? "border-red-400" : ""}
+              placeholder={mode === "login" ? "Enter email or username" : "name@example.com"}
             />
-          )}
-          <Input
-            name="password"
-            label={mode === "login" && role === "driver" ? "Driver Phone Number" : "Password"}
-            type="password"
-            required
-            minLength={mode === "login" && role === "driver" ? 10 : 6}
-            placeholder={mode === "login" && role === "driver" ? "Enter registered 10-digit phone" : ""}
-          />
-          <Input
-            name="driverId"
-            label="Driver ID"
-            type="number"
-            required={mode === "login" && role === "driver"}
-          />
-          {mode === "register" && <Input label="Confirm Password" type="password" required minLength={6} />}
-          <Select
-            name="role"
-            label="Login as"
-            defaultValue="user"
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="user">End User</option>
-            <option value="driver">Driver</option>
-            <option value="admin">Admin</option>
-          </Select>
-          {mode === "login" && role === "driver" && (
-            <p className="text-xs text-[#6B7280]">
-              Driver login uses <span className="font-semibold">Driver ID + registered phone number only</span>.
-            </p>
-          )}
-          {mode === "login" && role === "user" && (
-            <p className="text-xs text-[#6B7280]">
-              Demo user after seed: <span className="font-semibold">demo@greenmiles.in / password</span>.
-            </p>
+            {fieldErrors.email ? <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p> : null}
+          </div>
+          <div>
+            <Input
+              name="password"
+              label="Password"
+              type="password"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, password: undefined }));
+              }}
+              className={fieldErrors.password ? "border-red-400" : ""}
+            />
+            {fieldErrors.password ? <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p> : null}
+          </div>
+          {mode === "register" && (
+            <div>
+              <Input
+                label="Confirm Password"
+                type="password"
+                required
+                minLength={6}
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                }}
+                className={fieldErrors.confirmPassword ? "border-red-400" : ""}
+              />
+              {fieldErrors.confirmPassword ? <p className="mt-1 text-xs text-red-600">{fieldErrors.confirmPassword}</p> : null}
+            </div>
           )}
           <Button className="w-full" type="submit">{mode === "login" ? "Login" : "Create Account"}</Button>
         </form>

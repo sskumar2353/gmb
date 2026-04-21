@@ -27,6 +27,19 @@ export default function CourierPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const mapServerFieldErrors = (err) => {
+    const data = err?.response?.data?.data;
+    const fields = data?.fields && typeof data.fields === "object" ? data.fields : (typeof data === "object" ? data : {});
+    const mapped = {};
+    if (fields.pickup) mapped.pickup = fields.pickup;
+    if (fields.drop) mapped.drop = fields.drop;
+    if (fields.weight) mapped.weight = fields.weight;
+    if (fields.contactPhone) mapped.phone = fields.contactPhone;
+    if (fields.contactEmail) mapped.email = fields.contactEmail;
+    if (fields.recipientPhone) mapped.recipientPhone = fields.recipientPhone;
+    return mapped;
+  };
+
   const distanceKm = useMemo(() => {
     const geoDistance = estimateDistanceKm(pickup, drop);
     if (geoDistance) return geoDistance;
@@ -92,6 +105,10 @@ export default function CourierPage() {
       notify("Courier booked successfully", "success");
       nav("/courier/confirmation");
     } catch (e) {
+      const serverErrors = mapServerFieldErrors(e);
+      if (Object.keys(serverErrors).length) {
+        setErrors((prev) => ({ ...prev, ...serverErrors }));
+      }
       notify(e?.response?.data?.message || "Courier booking failed", "alert");
     } finally {
       setLoading(false);
@@ -111,7 +128,11 @@ export default function CourierPage() {
             <Input
               label="Pickup"
               value={pickup}
-              onChange={(e) => setPickup(e.target.value)}
+              onChange={(e) => {
+                setPickup(e.target.value);
+                setErrors((prev) => ({ ...prev, pickup: undefined }));
+              }}
+              className={errors.pickup ? "border-red-400" : ""}
               placeholder="Enter pickup location"
               list="serviceable-cities"
             />
@@ -122,7 +143,11 @@ export default function CourierPage() {
             <Input
               label="Drop"
               value={drop}
-              onChange={(e) => setDrop(e.target.value)}
+              onChange={(e) => {
+                setDrop(e.target.value);
+                setErrors((prev) => ({ ...prev, drop: undefined }));
+              }}
+              className={errors.drop ? "border-red-400" : ""}
               placeholder="Enter drop location"
               list="serviceable-cities"
             />
@@ -135,7 +160,11 @@ export default function CourierPage() {
               type="number"
               min={1}
               value={weight}
-              onChange={(e) => setWeight(e.target.value)}
+              onChange={(e) => {
+                setWeight(e.target.value);
+                setErrors((prev) => ({ ...prev, weight: undefined }));
+              }}
+              className={errors.weight ? "border-red-400" : ""}
             />
             {errors.weight && <p className="mt-1 text-xs text-red-600">{errors.weight}</p>}
           </div>
@@ -178,7 +207,11 @@ export default function CourierPage() {
           <Input
             label="Phone Number"
             value={contact.phone}
-            onChange={(e) => setContact((p) => ({ ...p, phone: e.target.value }))}
+            onChange={(e) => {
+              setContact((p) => ({ ...p, phone: e.target.value }));
+              setErrors((prev) => ({ ...prev, phone: undefined }));
+            }}
+            className={errors.phone ? "border-red-400" : ""}
             placeholder="10-digit mobile"
           />
           {errors.phone && <p className="text-xs text-red-600">{errors.phone}</p>}
@@ -187,7 +220,11 @@ export default function CourierPage() {
             label="Email"
             type="email"
             value={contact.email}
-            onChange={(e) => setContact((p) => ({ ...p, email: e.target.value }))}
+            onChange={(e) => {
+              setContact((p) => ({ ...p, email: e.target.value }));
+              setErrors((prev) => ({ ...prev, email: undefined }));
+            }}
+            className={errors.email ? "border-red-400" : ""}
             placeholder="name@example.com"
           />
           {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
@@ -206,7 +243,11 @@ export default function CourierPage() {
               <Input
                 label="Recipient Phone"
                 value={recipient.phone}
-                onChange={(e) => setRecipient((p) => ({ ...p, phone: e.target.value }))}
+                onChange={(e) => {
+                  setRecipient((p) => ({ ...p, phone: e.target.value }));
+                  setErrors((prev) => ({ ...prev, recipientPhone: undefined }));
+                }}
+                className={errors.recipientPhone ? "border-red-400" : ""}
                 placeholder="10-digit mobile"
               />
               {errors.recipientPhone && <p className="mt-1 text-xs text-red-600">{errors.recipientPhone}</p>}

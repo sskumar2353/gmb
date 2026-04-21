@@ -1,5 +1,7 @@
 package com.greenmiles.backend.booking;
 
+import com.greenmiles.backend.admin.PaymentLog;
+import com.greenmiles.backend.admin.PaymentLogRepository;
 import com.greenmiles.backend.booking.dto.BookingResponse;
 import com.greenmiles.backend.booking.dto.CreateBookingRequest;
 import com.greenmiles.backend.notification.Notification;
@@ -25,6 +27,7 @@ public class BookingService {
     private final RideEntityRepository rideRepository;
     private final BoardingPointRepository boardingPointRepository;
     private final NotificationRepository notificationRepository;
+    private final PaymentLogRepository paymentLogRepository;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -32,13 +35,15 @@ public class BookingService {
             UserRepository userRepository,
             RideEntityRepository rideRepository,
             BoardingPointRepository boardingPointRepository,
-            NotificationRepository notificationRepository) {
+            NotificationRepository notificationRepository,
+            PaymentLogRepository paymentLogRepository) {
         this.bookingRepository = bookingRepository;
         this.cancellationRepository = cancellationRepository;
         this.userRepository = userRepository;
         this.rideRepository = rideRepository;
         this.boardingPointRepository = boardingPointRepository;
         this.notificationRepository = notificationRepository;
+        this.paymentLogRepository = paymentLogRepository;
     }
 
     @Transactional
@@ -67,6 +72,7 @@ public class BookingService {
         booking.setBookingTime(Instant.now());
         booking.setBookingStatus(BookingStatus.CONFIRMED);
         Booking saved = bookingRepository.save(booking);
+        createPaymentLog(saved, 350, "SUCCESS", "UPI");
         createAlert(user, "Booking Confirmed", "Your booking #" + saved.getBookingId() + " is confirmed.");
         return toResponse(saved);
     }
@@ -96,6 +102,7 @@ public class BookingService {
         cancellation.setReason(reason);
         cancellation.setCancelledAt(Instant.now());
         cancellationRepository.save(cancellation);
+        createPaymentLog(booking, -250, "REFUND_PROCESSED", "WALLET");
         createAlert(
                 booking.getUser(),
                 "Booking Cancelled",
@@ -122,5 +129,18 @@ public class BookingService {
                 booking.getSeatNumber(),
                 booking.getBookingStatus(),
                 booking.getBookingTime());
+    }
+
+    private void createPaymentLog(Booking booking, int amount, String status, String method) {
+        PaymentLog paymentLog = new PaymentLog();
+        paymentLog.setBooking(booking);
+        paymentLog.setUser(booking.getUser());
+        paymentLog.setRide(booking.getRide());
+        paymentLog.setAmount(amount);
+        paymentLog.setStatus(status);
+        paymentLog.setMethod(method);
+        paymentLog.setReferenceCode("PAY-" + booking.getBookingId() + "-" + Instant.now().toEpochMilli());
+        paymentLog.setCreatedAt(Instant.now());
+        paymentLogRepository.save(paymentLog);
     }
 }

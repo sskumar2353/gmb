@@ -1,6 +1,7 @@
 package com.greenmiles.backend.ride;
 
 import com.greenmiles.backend.common.ApiResponse;
+import com.greenmiles.backend.ride.dto.CityResponse;
 import com.greenmiles.backend.ride.dto.RideSearchResponse;
 import java.time.LocalDate;
 import java.util.List;
@@ -28,5 +29,10 @@ public class RideController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<RideSearchResponse> rides = rideService.search(startCityId, endCityId, date);
         return ResponseEntity.ok(ApiResponse.ok("Rides fetched", rides));
+    }
+
+    @GetMapping("/cities")
+    public ResponseEntity<ApiResponse<List<CityResponse>>> cities() {
+        return ResponseEntity.ok(ApiResponse.ok("Cities fetched", rideService.getCities()));
     }
 }

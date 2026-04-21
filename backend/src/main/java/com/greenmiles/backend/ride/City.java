@@ -18,6 +18,10 @@ public class City {
     @Column(name = "city_name", nullable = false)
     private String cityName;
 
+    public Long getCityId() {
+        return cityId;
+    }
+
     public String getCityName() {
         return cityName;
     }
